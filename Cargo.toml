@@ -1,0 +1,15 @@
+[package]
+name = "vlkn_test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+vulkano = "0.29.0"
+bytemuck = "1.8.0"
+rand = "0.8.5"
+
+[profile.release_opt]
+inherits = "release"
+lto = true
