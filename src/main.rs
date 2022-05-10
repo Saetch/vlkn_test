@@ -126,5 +126,5 @@ struct MyStruct {
         .expect("failed to create buffer");
 
 
-    //shading logic is written in GLSL, which looks a bit like C. This needs to be imported and will we compiled aswell
+    //shading logic is written in GLSL, which looks a bit like C. This needs to be imported and will be compiled aswell
 }
