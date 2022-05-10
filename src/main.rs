@@ -120,9 +120,11 @@ struct MyStruct {
 
 
     //NEXT: CONCURRENCY IN GPU COMMANDS
-    let data_iter = 0..65536;               //create a buffer with size 65536  (x 32Bytes)
+    let data_iter = 0..65536;               //create a buffer with 65536 entries (x 32Bytes)
     let data_buffer =
     CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, data_iter)
         .expect("failed to create buffer");
 
+
+    //shading logic is written in GLSL, which looks a bit like C. This needs to be imported and will we compiled aswell
 }
