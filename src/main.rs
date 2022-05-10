@@ -2,11 +2,14 @@
 use rand::Rng;
 use vulkano::instance::{Instance, InstanceCreateInfo};
 use vulkano::device::physical::PhysicalDevice;
+use std::process::CommandArgs;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
 use vulkano::device::{Device, Features, DeviceCreateInfo, QueueCreateInfo, Queue};
 use bytemuck::{Pod, Zeroable};
+use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
+use vulkano::sync:: {self, GpuFuture};
 
 fn main() {
     //initialize vulkan and get the physical device (GPU)
@@ -14,7 +17,7 @@ fn main() {
     let physical = PhysicalDevice::enumerate(&instance).next().expect("no device available");
 
     //check the selected physical device for queue families. These are groupings of queues, which are kind of like threads on the GPU
-    //every queue family is responsible for specific actions (overlap possible)
+    //every queue family is responsible for specific actions (overlap possible), like graphics processing
     for family in physical.queue_families() {
         println!("Found a queue family with {:?} queue(s)", family.queues_count());
     }
@@ -68,5 +71,58 @@ struct MyStruct {
     CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, iter).unwrap();  //create a buffer with 128 elements containing the number 5 in u8
     */            
 
+
+    let mut content = buffer.write().unwrap();
+    // `content` implements `DerefMut` whose target is of type `MyStruct` (the content of the buffer)
+    content.a *= 2;
+    content.b = 9;
+
+
+
+    //NEXT: COPYING CONTENT FROM ONE BUFFER TO ANOTHER
+
+    let source_content: Vec<i32> = (0..64).collect();       //Vector (List) with elements (i32) of 0 to 63
+    let source = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, source_content.into_iter())
+    .expect("failed to create buffer");
+
+    let destination_content: Vec<i32> = (0..64).map(|_| 0).collect();   //Vector with all 0s
+    let destination = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, destination_content)
+    .expect("failed to create buffer");
+
+
+    //create a primary command buffer. A buffer that stores commands for the GPU (as opposed to the previous buffers, which store data)
+    //these buffered commands are transferred to the GPU in unison, because these transfers take time. (performance optimization)
+    
+    let mut builder = AutoCommandBufferBuilder::primary(
+        device.clone(),
+        queue.family(), 
+        CommandBufferUsage::OneTimeSubmit,          //the buffer(s) can only be submitted once
+    )
+    .unwrap();
+
+    builder.copy_buffer(source.clone(), destination.clone()).unwrap();          //clones are needed or the original ownership gets transferred, since the source and destination variables are Arc<>, these clones are cheap ond lead to a copied reference
+
+    let command_buffer = builder.build().unwrap();    //create the actual buffer
+
+
+    let future = sync::now(device.clone())
+    .then_execute(queue.clone(), command_buffer)
+    .unwrap()
+    .then_signal_fence_and_flush()        //results in the execution of the commandBuffers on the selected GPU that is associated with the device and sends a fence (action completed) signal back, which will be stored in the future variable as soon as it is completed (async)
+    .unwrap();
+
+    future.wait(None).unwrap();  //stops this CPU thread until the future has the result
+    let src_content = source.read().unwrap();                   //read the content from the buffers. The vectors  were converted to slices 
+    let destination_content = destination.read().unwrap();
+    assert_eq!(&*src_content, &*destination_content);
+
+
+
+
+    //NEXT: CONCURRENCY IN GPU COMMANDS
+    let data_iter = 0..65536;               //create a buffer with size 65536  (x 32Bytes)
+    let data_buffer =
+    CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, data_iter)
+        .expect("failed to create buffer");
 
 }
