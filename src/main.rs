@@ -10,7 +10,7 @@ use vulkano::device::{Device, Features, DeviceCreateInfo, QueueCreateInfo, Queue
 use bytemuck::{Pod, Zeroable};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::sync:: {self, GpuFuture};
-
+use vulkano::pipeline::ComputePipeline;
 fn main() {
     //initialize vulkan and get the physical device (GPU)
     let instance = Instance::new(InstanceCreateInfo::default()).expect("failed to create instance");
@@ -127,4 +127,36 @@ struct MyStruct {
 
 
     //shading logic is written in GLSL, which looks a bit like C. This needs to be imported and will be compiled aswell
+
+    mod cs {
+
+        vulkano_shaders::shader!{
+            ty: "compute",                  //use version 450, create workgroups (1024) with a x size of 64, y size of 1 and z size of 1 (one dimensional data structure, otherwise use y for 2 and y and z for 3 dimensions)  -> define a buffer data structure and call the function
+            src: "
+    #version 450                                
+    
+    layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+    
+    layout(set = 0, binding = 0) buffer Data {
+        uint data[];
+    } buf;
+    
+    void main() {
+        uint idx = gl_GlobalInvocationID.x;
+        buf.data[idx] *= 12;
+    }"
+        }
+    }
+    let shader = cs::load(device.clone())       //create shader for the current device based on our definition in cs
+    .expect("failed to create shader module");
+
+    //compute pipeline to actually execute the shader
+    let compute_pipeline = ComputePipeline::new(
+        device.clone(),
+        shader.entry_point("main").unwrap(),
+        &(),
+        None,
+        |_| {},
+    )
+    .expect("failed to create compute pipeline");
 }
