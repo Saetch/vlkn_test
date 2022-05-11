@@ -11,6 +11,9 @@ use bytemuck::{Pod, Zeroable};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::sync:: {self, GpuFuture};
 use vulkano::pipeline::ComputePipeline;
+use vulkano::pipeline::Pipeline;
+use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
+use vulkano::pipeline::PipelineBindPoint;
 fn main() {
     //initialize vulkan and get the physical device (GPU)
     let instance = Instance::new(InstanceCreateInfo::default()).expect("failed to create instance");
@@ -131,7 +134,7 @@ struct MyStruct {
     mod cs {
 
         vulkano_shaders::shader!{
-            ty: "compute",                  //use version 450, create workgroups (1024) with a x size of 64, y size of 1 and z size of 1 (one dimensional data structure, otherwise use y for 2 and y and z for 3 dimensions)  -> define a buffer data structure and call the function
+            ty: "compute",                  //use version 450, create workgroups (1024) with a x size of 64, y size of 1 and z size of 1 (one dimensional data structure, otherwise use y for 2 and y and z for 3 dimensions)  -> define a buffer data structure and call the function. Layout buffer Data is a slot for a descriptor set
             src: "
     #version 450                                
     
@@ -159,4 +162,16 @@ struct MyStruct {
         |_| {},
     )
     .expect("failed to create compute pipeline");
+
+    //create descriptor set, in order to do that, we need to get the general layout of the descriptors that we put in th GSLS code before (buffer Data)
+    let layout = compute_pipeline.layout().set_layouts().get(0).unwrap();
+    //create a DescriptorSet with the Layout, use the corresponding binding and put the data_buffer (65536 integers from 0 to 65536) in
+    let set = PersistentDescriptorSet::new(
+        layout.clone(),
+        [WriteDescriptorSet::buffer(0, data_buffer.clone())], // 0 is the binding
+    )
+    .unwrap();
+
+
+    //next: create a command buffer similiar to the one that copies the buffer seen above, just for the shader we created
 }
