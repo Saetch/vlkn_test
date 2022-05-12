@@ -16,6 +16,7 @@ use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::pipeline::PipelineBindPoint;
 use vulkano::image::{ImageDimensions, StorageImage};
 use vulkano::format::{Format, ClearValue};
+use image::{ImageBuffer, Rgba};
 
 fn main() {
     //initialize vulkan and get the physical device (GPU)
@@ -225,7 +226,7 @@ struct MyStruct {
             height: 1024,
             array_layers: 1, // images can be arrays of layers
         },
-        Format::R8G8B8A8_UNORM,
+        Format::R8G8B8A8_UNORM,    //RED -> GREEN -> BLUE -> ALPHA
         Some(queue.family()),
     )
     .unwrap();
@@ -238,9 +239,40 @@ struct MyStruct {
     )
     .unwrap();
     
-    builder
-        .clear_color_image(image.clone(), ClearValue::Float([0.0, 0.0, 1.0, 1.0]))
-        .unwrap();
+
+
+    //create a Buffer to write to. 1024 * 1024, but each pixel has 4 values (RGBA), so 1024* 1024 * 4. 
+    //Images cannot be directly accessed by the CPU, only the GPU, so this is needed for further actions
+    let buf = CpuAccessibleBuffer::from_iter(
+        device.clone(),
+        BufferUsage::all(),
+        false,
+        (0..1024 * 1024 * 4).map(|_| 0u8),  //initialize every value with 0
+    )
+    .expect("failed to create buffer");
     
+    builder
+    .clear_color_image(image.clone(), ClearValue::Float([0.0, 0.0, 1.0, 1.0]))
+    .unwrap()
+    .copy_image_to_buffer(image.clone(), buf.clone())
+    .unwrap();
+
     let command_buffer = builder.build().unwrap();
+    //execute the copy of the image to the buffer
+    let future = sync::now(device.clone())
+        .then_execute(queue.clone(), command_buffer)
+        .unwrap()
+        .then_signal_fence_and_flush()
+        .unwrap();
+
+    future.wait(None).unwrap();
+
+    //create image from the contents in the buffer
+    let buffer_content = buf.read().unwrap();
+    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap(); 
+
+    //save the image to a .png file 
+    image.save("image.png").unwrap();
+
+    println!("Everything succeeded!");
 }
