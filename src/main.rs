@@ -385,7 +385,7 @@ struct MyStruct {
     
     let command_buffer = builder.build().unwrap();
     
-
+    println!("Starting Mandelbrot calculation ..." );
     //submit the commands to the GPU
     let future = sync::now(device.clone())
         .then_execute(queue.clone(), command_buffer)
