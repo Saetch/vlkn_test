@@ -58,6 +58,14 @@ fn main() {
 
     let queue = v_q.first().unwrap();
 
+    //Now the actual initialization which needs to be done pretty much everytime you need to do something in vulkan is done. Everything below
+    //are just a bunch of use-cases and examples on how to go from here to get vulkan to do something!
+
+
+
+
+
+
 // here we derive all these traits to ensure the data behaves as simple as possible
 #[repr(C)]      //organize the struct in memory as if it was a C struct
 #[derive(Default, Copy, Clone, Zeroable, Pod)]      //derive Traits Default value, Copy, Clone, init with all 0 Bytes and plain old data (no functions or fancies) for the struct
