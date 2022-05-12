@@ -174,4 +174,45 @@ struct MyStruct {
 
 
     //next: create a command buffer similiar to the one that copies the buffer seen above, just for the shader we created
+    let mut builder = AutoCommandBufferBuilder::primary(
+        device.clone(),
+        queue.family(),
+        CommandBufferUsage::OneTimeSubmit,
+    )
+    .unwrap();
+    
+    builder
+        .bind_pipeline_compute(compute_pipeline.clone())
+        .bind_descriptor_sets(
+            PipelineBindPoint::Compute,
+            compute_pipeline.layout().clone(),
+            0, // 0 is the index of our set
+            set,
+        )
+        .dispatch([1024, 1, 1])     //spawn 1024 working groups
+        .unwrap();
+    
+    let command_buffer = builder.build().unwrap();
+
+    //submit the command buffer
+    let future = sync::now(device.clone())
+    .then_execute(queue.clone(), command_buffer)
+    .unwrap()
+    .then_signal_fence_and_flush()
+    .unwrap();
+
+        //wait for the execution to complete
+    future.wait(None).unwrap();
+    //check the buffer for changed values (we could have changed these values our Rust code aswell, but we used the GPUs Ability to perform concurrent actions on data structures)
+    let content = data_buffer.read().unwrap();
+    for (n, val) in content.iter().enumerate() {
+        assert_eq!(*val, n as u32 * 12);
+    }
+
+    println!("Everything succeeded!");
+
+
+    //NEXT: Image creation
+    
+
 }
