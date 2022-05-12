@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime};
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
 use vulkano::device::{Device, Features, DeviceCreateInfo, QueueCreateInfo, Queue};
 use bytemuck::{Pod, Zeroable};
-use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
+use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents};
 use vulkano::sync:: {self, GpuFuture};
 use vulkano::pipeline::ComputePipeline;
 use vulkano::pipeline::Pipeline;
@@ -19,6 +19,12 @@ use vulkano::format::{Format, ClearValue};
 use image::{ImageBuffer, Rgba};
 use vulkano::image::view::ImageView;
 
+
+use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
+use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
+use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
+use vulkano::pipeline::GraphicsPipeline;
+use vulkano::render_pass::{Subpass, Framebuffer, FramebufferCreateInfo};
 fn main() {
     //initialize vulkan and get the physical device (GPU)
     let instance = Instance::new(InstanceCreateInfo::default()).expect("failed to create instance");
@@ -410,4 +416,208 @@ struct MyStruct {
 
     println!("Everything succeeded!");
 
+
+
+
+    //NEXT UP: GRAPHICS PIPELINE and DRAWING TRIANGLES
+
+
+    //create a struct to represent a vertex, a single corner of a triangle. The only shape the GPU can actually draw without tessellation
+    #[repr(C)]
+    #[derive(Default, Copy, Clone, Zeroable, Pod)]
+    struct Vertex {
+        position: [f32; 2],
+    }
+    //tell vulkano, that our vertex struct (name does not matter, aswell as the name for position) represents a vertex
+    vulkano::impl_vertex!(Vertex, position);
+
+    //create 3 vertices, which make up our triangle
+    let vertex1 = Vertex { position: [-0.5, -0.5] };
+    let vertex2 = Vertex { position: [ 0.0,  0.5] };
+    let vertex3 = Vertex { position: [ 0.5, -0.25] };
+
+
+    //create a buffer that contains these 3 vertices (called a vertex buffer)
+    let vertex_buffer = CpuAccessibleBuffer::from_iter(
+        device.clone(),
+        BufferUsage::vertex_buffer(),           //vertex buffer indicates how the buffer is meant to be used and has nothing to do with its properties
+        false,
+        vec![vertex1, vertex2, vertex3].into_iter(),
+    )
+    .unwrap();
+
+    //creating a vertex shader is similiar to a compute shader. Here we set the gl position to the position of the element in the vector, ergo our vertex positions!
+    mod my_vertex_shader {
+        vulkano_shaders::shader!{
+            ty: "vertex",
+            src: "
+    #version 450
+    
+    layout(location = 0) in vec2 position;
+    
+    void main() {
+        gl_Position = vec4(position, 0.0, 1.0);
+    }"
+        }
+    }
+    
+    mod my_fragment_shader {
+        vulkano_shaders::shader!{
+            ty: "fragment",
+            src: "
+    #version 450
+    
+    layout(location = 0) out vec4 f_color;
+    
+    void main() {
+        f_color = vec4(1.0, 0.0, 0.0, 1.0);
+    }"
+        }
+    }
+
+    //get objects that represent our shaders
+    let my_vertex_shader = my_vertex_shader::load(device.clone()).expect("failed to create shader module");
+    let my_fragment_shader = my_fragment_shader::load(device.clone()).expect("failed to create shader module");
+
+
+
+    let viewport = Viewport {
+        origin: [0.0, 0.0],
+        dimensions: [1024.0, 1024.0],
+        depth_range: 0.0..1.0,
+    };
+
+    //create a render pass, a time window, during which the GPU is allowed to draw on the source
+    let render_pass = vulkano::single_pass_renderpass!(device.clone(),
+        attachments: {
+            color: {
+                load: Clear,
+                store: Store,
+                format: Format::R8G8B8A8_UNORM,
+                samples: 1,
+            }
+        },
+        pass: {
+            color: [color],
+            depth_stencil: {}
+        }
+    )
+    .unwrap();
+
+
+    let image = StorageImage::new(
+        device.clone(),
+        ImageDimensions::Dim2d {
+            width: 1024,
+            height: 1024,
+            array_layers: 1, // images can be arrays of layers
+        },
+        Format::R8G8B8A8_UNORM,
+        Some(queue.family()),
+    )
+    .unwrap();
+    
+
+    let view = ImageView::new_default(image.clone()).unwrap();
+    let framebuffer = Framebuffer::new(
+        render_pass.clone(),
+        FramebufferCreateInfo {
+            attachments: vec![view],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+
+    let pipeline = GraphicsPipeline::start()
+        // Describes the layout of the vertex input and how should it behave
+        .vertex_input_state(BuffersDefinition::new().vertex::<Vertex>())
+        // A Vulkan shader can in theory contain multiple entry points, so we have to specify
+        // which one.
+        .vertex_shader(my_vertex_shader.entry_point("main").unwrap(), ())
+        // Indicate the type of the primitives (the default is a list of triangles)
+        .input_assembly_state(InputAssemblyState::new())
+        // Set the fixed viewport
+        .viewport_state(ViewportState::viewport_fixed_scissor_irrelevant([viewport]))
+        // Same as the vertex input, but this for the fragment input
+        .fragment_shader(my_fragment_shader.entry_point("main").unwrap(), ())
+        // This graphics pipeline object concerns the first pass of the render pass.
+        .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
+        // Now that everything is specified, we call `build`.
+        .build(device.clone())
+        .unwrap();
+    
+
+
+
+        let mut builder = AutoCommandBufferBuilder::primary(
+            device.clone(),
+            queue.family(),
+            CommandBufferUsage::OneTimeSubmit,
+        )
+        .unwrap();
+        
+                        //create the target buffer to draw to, this is not needed for the actual computation, just to see the output
+                        let buf = CpuAccessibleBuffer::from_iter(
+                            device.clone(),
+                            BufferUsage::all(),
+                            false,
+                            (0..1024 * 1024 * 4).map(|_| 0u8),
+                        )
+                        .expect("failed to create buffer");
+
+    
+
+    println!("Beginning drawing of triangle!");
+
+
+    //once again, create a commandBufferBuilder, to submit commands to the GPU
+    let mut builder = AutoCommandBufferBuilder::primary(
+        device.clone(),
+        queue.family(),
+        CommandBufferUsage::OneTimeSubmit,
+    )
+    .unwrap();
+    
+    //tell the build what we want
+    builder
+        .begin_render_pass(                     //enter the render pass, which means tell the GPU, we want to draw on the source
+            framebuffer.clone(),                //the framebuffer contains elements which are needed by the draw calls
+            SubpassContents::Inline,  
+            vec![[0.0, 0.0, 1.0, 1.0].into()], //clear the view with all blue
+        )
+        .unwrap()
+    
+        // new stuff
+        .bind_pipeline_graphics(pipeline.clone())           //tell the GPU we want to execute the commands defined in the graphics pipeline and subsequent shaders
+        .bind_vertex_buffers(0, vertex_buffer.clone()) //add our vertices as data to be drawn at location 0
+        .draw(
+            3, 1, 0, 0, // 3 is the number of vertices, 1 is the number of instances, start at vertex 0, instance 0
+        )
+        
+        .unwrap()
+        .end_render_pass()
+        .unwrap()    
+        .copy_image_to_buffer(image, buf.clone()) //copy our result to our image buffer
+        .unwrap();
+    
+    // build the commandBuffer 
+    let command_buffer = builder.build().unwrap();
+    
+    //execute the commands defined in the command buffer structure on the GPU and ask for a signal fence (done signal)
+    let future = sync::now(device.clone())
+        .then_execute(queue.clone(), command_buffer)
+        .unwrap()
+        .then_signal_fence_and_flush()
+        .unwrap();
+    future.wait(None).unwrap();
+    
+    //read the content from the buffer we copied our result to
+    let buffer_content = buf.read().unwrap();
+    //create an image from the buffer data
+    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap();
+    //save the image to a .png file
+    image.save("triangle.png").unwrap();
+    
+    println!("Everything succeeded!");
 }
