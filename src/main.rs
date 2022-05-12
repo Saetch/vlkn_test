@@ -14,6 +14,9 @@ use vulkano::pipeline::ComputePipeline;
 use vulkano::pipeline::Pipeline;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::pipeline::PipelineBindPoint;
+use vulkano::image::{ImageDimensions, StorageImage};
+use vulkano::format::{Format, ClearValue};
+
 fn main() {
     //initialize vulkan and get the physical device (GPU)
     let instance = Instance::new(InstanceCreateInfo::default()).expect("failed to create instance");
@@ -213,6 +216,31 @@ struct MyStruct {
 
 
     //NEXT: Image creation
-    
 
+    //create a new image for the device, 1024 * 1024 pixels, with RGBA, used for the queue family
+    let image = StorageImage::new(
+        device.clone(),
+        ImageDimensions::Dim2d {
+            width: 1024,
+            height: 1024,
+            array_layers: 1, // images can be arrays of layers
+        },
+        Format::R8G8B8A8_UNORM,
+        Some(queue.family()),
+    )
+    .unwrap();
+
+    //create a commandBuffer to clear the image we just created
+    let mut builder = AutoCommandBufferBuilder::primary(
+        device.clone(),
+        queue.family(),
+        CommandBufferUsage::OneTimeSubmit,
+    )
+    .unwrap();
+    
+    builder
+        .clear_color_image(image.clone(), ClearValue::Float([0.0, 0.0, 1.0, 1.0]))
+        .unwrap();
+    
+    let command_buffer = builder.build().unwrap();
 }
