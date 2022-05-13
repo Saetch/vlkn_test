@@ -2,6 +2,9 @@
 use rand::Rng;
 use vulkano::instance::{Instance, InstanceCreateInfo};
 use vulkano::device::physical::PhysicalDevice;
+use vulkano_win::VkSurfaceBuild;
+use winit::event_loop::EventLoop;
+use winit::window::WindowBuilder;
 use std::process::CommandArgs;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -19,12 +22,13 @@ use vulkano::format::{Format, ClearValue};
 use image::{ImageBuffer, Rgba};
 use vulkano::image::view::ImageView;
 
-
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
 use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
 use vulkano::pipeline::GraphicsPipeline;
 use vulkano::render_pass::{Subpass, Framebuffer, FramebufferCreateInfo};
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::ControlFlow;
 fn main() {
     //initialize vulkan and get the physical device (GPU)
     let instance = Instance::new(InstanceCreateInfo::default()).expect("failed to create instance");
@@ -625,4 +629,32 @@ struct MyStruct {
 
 
     //NEXT UP: WINDOWING!
+
+    //tell vulkan that we need to load extensions in order to render to the viewport
+    let required_extensions = vulkano_win::required_extensions();
+    //this is required, too. But I have no idea why. Something about the need to forward the instance to the window
+    let instance = Instance::new(InstanceCreateInfo {
+        enabled_extensions: required_extensions,
+        ..Default::default()
+    })
+    .expect("failed to create instance");
+
+    //create an EventLoop and a surface that correspons to it. Thus we will be able to handle events (changed sizes, mouse clicks, button pressed, refreshs, etc)
+    let event_loop = EventLoop::new(); 
+    let surface = WindowBuilder::new()  //abstraction of object that can be drawn to. Get the actual window by calling surface.window()
+        .build_vk_surface(&event_loop, instance.clone())
+        .unwrap();
+
+
+    event_loop.run(|event, _, control_flow| {
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => {
+                *control_flow = ControlFlow::Exit;
+            },
+             _ => ()
+        }
+    });
 }
