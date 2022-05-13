@@ -487,7 +487,7 @@ struct MyStruct {
         depth_range: 0.0..1.0,
     };
 
-    //create a render pass, a time window, during which the GPU is allowed to draw on the source
+    //create a render pass, a time period, during which the GPU is allowed to draw on the source
     let render_pass = vulkano::single_pass_renderpass!(device.clone(),
         attachments: {
             color: {
@@ -620,4 +620,9 @@ struct MyStruct {
     image.save("triangle.png").unwrap();
     
     println!("Everything succeeded!");
+
+
+
+
+    //NEXT UP: WINDOWING!
 }
