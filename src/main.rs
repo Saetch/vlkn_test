@@ -12,11 +12,11 @@ use winit::event::{Event, WindowEvent};
 
 //this 'a is a lifetime parameter, it indicates in this case that instance aswell as the returned values have the same lifetime
 //this is needed for Rust's borrow checker (the thing that lets Rust not need memory management or garbage collection), it indicates how long a value or object is valid. In this case the phys_device and queue family is only valid as long as the device(loaded instance of vulkan) is
-fn select_physical_device<'a>(
-    instance: &'a Arc<Instance>,
-    surface: Arc<Surface<Window>>,
-    device_extensions: &DeviceExtensions,
-) -> (PhysicalDevice<'a>, QueueFamily<'a>) {
+fn select_physical_device<'a>(          //the next few lines are all just function declaration with parameters
+    instance: &'a Arc<Instance>,        //instance handler for vulkan
+    surface: Arc<Surface<Window>>,      //the surface to be drawn to. This is external and provided by win-init
+    device_extensions: &DeviceExtensions,   //the defined extensions that should be supported by the physical device that should be selected
+) -> (PhysicalDevice<'a>, QueueFamily<'a>) {    //return a tuple (just 2 different variables grouped together) of a physical device and a queue family
 
 
     let (physical_device, queue_family) = PhysicalDevice::enumerate(&instance)      //get a list of all physical devices that support vulkan
