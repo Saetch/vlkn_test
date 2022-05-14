@@ -10,20 +10,23 @@ use vulkano::device::{Device,  DeviceCreateInfo, QueueCreateInfo, Queue};
 use vulkano::device::DeviceExtensions;
 use winit::event::{Event, WindowEvent};
 
-
+//this 'a is a lifetime parameter, it indicates in this case that instance aswell as the returned values have the same lifetime
+//this is needed for Rust's borrow checker (the thing that lets Rust not need memory management or garbage collection), it indicates how long a value or object is valid. In this case the phys_device and queue family is only valid as long as the device(loaded instance of vulkan) is
 fn select_physical_device<'a>(
     instance: &'a Arc<Instance>,
     surface: Arc<Surface<Window>>,
     device_extensions: &DeviceExtensions,
 ) -> (PhysicalDevice<'a>, QueueFamily<'a>) {
-    let (physical_device, queue_family) = PhysicalDevice::enumerate(&instance)
-        .filter(|&p| p.supported_extensions().is_superset_of(&device_extensions))
+
+
+    let (physical_device, queue_family) = PhysicalDevice::enumerate(&instance)      //get a list of all physical devices that support vulkan
+        .filter(|&p| p.supported_extensions().is_superset_of(&device_extensions))               //filter the iterator for all devices that have a set of supported extensions which includes the provided device_extensions
         .filter_map(|p| {
             p.queue_families()
-                .find(|&q| q.supports_graphics() && q.supports_surface(&surface).unwrap_or(false))
-                .map(|q| (p, q))
+                .find(|&q| q.supports_graphics() && q.supports_surface(&surface).unwrap_or(false))  //further filter only for devices which queue families support graphics and surface (and look for which queue family it is). Unwrap_or() maps the unwrap error to the provided default value (in this case false)
+                .map(|q| (p, q))                                                                          //create a tuple from the physical device and the queue family found
         })
-        .min_by_key(|(p, _)| match p.properties().device_type {
+        .min_by_key(|(p, _)| match p.properties().device_type {                                        //provide the priority in which to chose 0->1->2->3->4, based on the type, dedicated GPU scores best, so this is chosen first, if it exists, otherwise integrated GPU and so on ...
             PhysicalDeviceType::DiscreteGpu => 0,
             PhysicalDeviceType::IntegratedGpu => 1,
             PhysicalDeviceType::VirtualGpu => 2,
@@ -33,6 +36,8 @@ fn select_physical_device<'a>(
         .expect("no device available");
 
     (physical_device, queue_family)
+
+
 }
 
 fn main() {
