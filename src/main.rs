@@ -1,34 +1,13 @@
 
-use rand::Rng;
 use vulkano::instance::{Instance, InstanceCreateInfo};
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType, QueueFamily};
 use vulkano::swapchain::Surface;
 use vulkano_win::VkSurfaceBuild;
 use winit::event_loop::{EventLoop, ControlFlow};
 use winit::window::{WindowBuilder, Window};
-use std::process::CommandArgs;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
-use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
-use vulkano::device::{Device, Features, DeviceCreateInfo, QueueCreateInfo, Queue};
-use bytemuck::{Pod, Zeroable};
-use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents};
-use vulkano::sync:: {self, GpuFuture};
-use vulkano::pipeline::ComputePipeline;
-use vulkano::pipeline::Pipeline;
-use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
-use vulkano::pipeline::PipelineBindPoint;
-use vulkano::image::{ImageDimensions, StorageImage};
-use vulkano::format::{Format, ClearValue};
-use image::{ImageBuffer, Rgba};
-use vulkano::image::view::ImageView;
+use vulkano::device::{Device,  DeviceCreateInfo, QueueCreateInfo, Queue};
 use vulkano::device::DeviceExtensions;
-
-use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
-use vulkano::pipeline::graphics::vertex_input::BuffersDefinition;
-use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
-use vulkano::pipeline::GraphicsPipeline;
-use vulkano::render_pass::{Subpass, Framebuffer, FramebufferCreateInfo};
 use winit::event::{Event, WindowEvent};
 
 
